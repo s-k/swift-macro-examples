@@ -30,7 +30,7 @@ public protocol ExpressibleByFontLiteral {
 /// Can be called inside a function to print the function name and arguments.
 @expression public macro printArguments() = MacroExamplesPlugin.PrintArgumentsMacro
 
-@expression public macro apply<R: ResultBuilder>(resultBuilder: R.Type, to closure: () -> Void) -> (() -> String) = MacroExamplesPlugin.ResultBuilderMacro
+@expression public macro apply<R: ResultBuilder>(simpleResultBuilder: R.Type, to closure: () -> Void) -> (() -> String) = #externalMacro(module: "MacroExamplesPlugin", type: "SimpleResultBuilderMacro")
 
 public protocol ResultBuilder {
     associatedtype Component
@@ -45,4 +45,4 @@ public protocol ResultBuilder {
 
 import SwiftUI
 
-@expression public macro apply<R>(resultBuilder2: R.Type, to closure: () -> Void) -> (() -> any View) = MacroExamplesPlugin.ResultBuilderMacro2
+@expression public macro apply<R>(resultBuilder: R.Type, to closure: () -> Void) -> (() -> any View) = #externalMacro(module: "MacroExamplesPlugin", type: "ResultBuilderMacro")

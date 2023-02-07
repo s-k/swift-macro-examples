@@ -9,7 +9,7 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import _SwiftSyntaxMacros
 
-public struct ResultBuilderMacro2: ExpressionMacro {
+public struct ResultBuilderMacro: ExpressionMacro {
     public static func expansion(
         of node: MacroExpansionExprSyntax, in context: inout MacroExpansionContext
     ) throws -> ExprSyntax {
@@ -22,10 +22,10 @@ public struct ResultBuilderMacro2: ExpressionMacro {
         }
         
         let originalStatements: [CodeBlockItemSyntax] = originalClosure.statements.map { $0.withoutTrivia() }
-        return "{ () -> any View in\n\(raw: rewrittenStatements(forOriginalStatments: originalStatements, resultBuilderName: resultBuilderName, context: &context))\n}"
+        return "{ () -> any View in\n\(raw: rewrittenStatements(forOriginalStatments: originalStatements, finalCallPrefix: "return ", resultBuilderName: resultBuilderName, context: &context))\n}"
     }
     
-    private static func rewrittenStatements(forOriginalStatments originalStatements: [CodeBlockItemSyntax], finalCall: String? = nil, resultBuilderName: String, context: inout MacroExpansionContext) -> String {
+    private static func rewrittenStatements(forOriginalStatments originalStatements: [CodeBlockItemSyntax], finalCallPrefix: String, finalCallSuffix: String = "", resultBuilderName: String, context: inout MacroExpansionContext) -> String {
         var localNames: [String] = []
         var newStatements: [String] = []
         
@@ -38,15 +38,36 @@ public struct ResultBuilderMacro2: ExpressionMacro {
             case .stmt(let stmt):
                 let localName = context.createUniqueLocalName().description
                 if let ifStmt = stmt.as(IfStmtSyntax.self) {
-                    newStatements.append("""
-                    let \(localName) = {
-                        if \(ifStmt.conditions) {
-                            \(rewrittenStatements(forOriginalStatments: ifStmt.body.statements.map { $0.withoutTrivia() }, finalCall: "\(resultBuilderName).buildIf", resultBuilderName: resultBuilderName, context: &context))
-                        }
-                        return \(resultBuilderName).buildIf(nil)
-                    }()
-                    """)
-                    localNames.append(localName)
+                    if case .codeBlock(let elseBody) = ifStmt.elseBody {
+                        let tempIfName = context.createUniqueLocalName()
+                        let tempElseName = context.createUniqueLocalName()
+                        newStatements.append("""
+                            let \(localName) = {
+                                if false {
+                                    \(rewrittenStatements(forOriginalStatments: ifStmt.body.statements.map { $0.withoutTrivia() }, finalCallPrefix: "let \(tempIfName) = ", resultBuilderName: resultBuilderName, context: &context))
+                                    \(rewrittenStatements(forOriginalStatments: elseBody.statements.map { $0.withoutTrivia() }, finalCallPrefix: "let \(tempElseName) = ", resultBuilderName: resultBuilderName, context: &context))
+                                    return true ? \(resultBuilderName).buildEither(first: \(tempIfName)) : \(resultBuilderName).buildEither(second: \(tempElseName))
+                                }
+                                if \(ifStmt.conditions) {
+                                    \(rewrittenStatements(forOriginalStatments: ifStmt.body.statements.map { $0.withoutTrivia() }, finalCallPrefix: "return \(resultBuilderName).buildEither(first: ", finalCallSuffix: ")", resultBuilderName: resultBuilderName, context: &context))
+                                } else {
+                                    \(rewrittenStatements(forOriginalStatments: elseBody.statements.map { $0.withoutTrivia() }, finalCallPrefix: "return \(resultBuilderName).buildEither(second: ", finalCallSuffix: ")", resultBuilderName: resultBuilderName, context: &context))
+                                }
+                            }()
+                        """)
+                        localNames.append(localName)
+                        
+                    } else {
+                        newStatements.append("""
+                            let \(localName) = {
+                                if \(ifStmt.conditions) {
+                                    \(rewrittenStatements(forOriginalStatments: ifStmt.body.statements.map { $0.withoutTrivia() }, finalCallPrefix: "return \(resultBuilderName).buildIf(", finalCallSuffix: ")", resultBuilderName: resultBuilderName, context: &context))
+                                }
+                                return \(resultBuilderName).buildIf(nil)
+                            }()
+                        """)
+                        localNames.append(localName)
+                    }
                 } else {
                     newStatements.append(stmt.description)
                 }
@@ -55,18 +76,14 @@ public struct ResultBuilderMacro2: ExpressionMacro {
             }
         }
         
-        if let finalCall {
-            newStatements.append("return \(finalCall)(\(resultBuilderName).buildBlock(\(localNames.joined(separator: ", "))))")
-        } else {
-            newStatements.append("return \(resultBuilderName).buildBlock(\(localNames.joined(separator: ", ")))")
-        }
+        newStatements.append("\(finalCallPrefix)\(resultBuilderName).buildBlock(\(localNames.joined(separator: ", ")))\(finalCallSuffix)")
         
         let joinedStatements = newStatements.joined(separator: "\n")
         return joinedStatements
     }
 }
 
-public struct ResultBuilderMacro: ExpressionMacro {
+public struct SimpleResultBuilderMacro: ExpressionMacro {
     public static func expansion(
         of node: MacroExpansionExprSyntax, in context: inout MacroExpansionContext
     ) throws -> ExprSyntax {

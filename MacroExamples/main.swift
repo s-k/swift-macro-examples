@@ -78,7 +78,7 @@ var string: String {
     "sentence."
 }
 
-let stringClosure = #apply(resultBuilder: StringAppender.self, to: {
+let stringClosure = #apply(simpleResultBuilder: StringAppender.self, to: {
     "This"
     "is"
     "a"
@@ -115,25 +115,7 @@ print(stringClosure())
 
 import SwiftUI
 
-@ViewBuilder var ogView: some View {
-    Text("This")
-        .foregroundColor(.red)
-    Text("is")
-    Text("a")
-    if long {
-        Text("long")
-            .bold()
-    }
-    let lastWord = "Sentence"
-    Text(lastWord)
-}
-
-print(type(of: ogView))
-
-let very = true
-let long = true
-
-let view = #apply(resultBuilder2: ViewBuilder.self) {
+@ViewBuilder var view: some View {
     Text("This")
     Text("is")
     Text("a")
@@ -149,4 +131,27 @@ let view = #apply(resultBuilder2: ViewBuilder.self) {
     Text(lastWord)
 }
 
-print(type(of: view()))
+print(type(of: view))
+
+let very = true
+let long = true
+
+let viewClosure = #apply(resultBuilder: ViewBuilder.self) {
+    Text("This")
+    Text("is")
+    Text("a")
+    if very {
+        Text("very")
+    }
+    if long {
+        Label("long", systemImage: "arrow.left.and.right")
+        Text("(really long)")
+    } else {
+        let shortWord = "short"
+        Text(shortWord)
+    }
+    let lastWord = "sentence"
+    Text(lastWord)
+}
+
+print(type(of: viewClosure()))
