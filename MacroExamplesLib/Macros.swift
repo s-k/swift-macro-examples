@@ -88,3 +88,16 @@ public macro Observable() = #externalMacro(module: "MacroExamplesPlugin", type: 
 
 @attached(accessor)
 public macro ObservableProperty() = #externalMacro(module: "MacroExamplesPlugin", type: "ObservablePropertyMacro")
+
+@attached(member, names: named(encode), named(CodingKeys))
+public macro CustomCodable() = #externalMacro(module: "MacroExamplesPlugin", type: "CustomCodableMacro")
+
+/// This macro does nothing. It is only used as a hint for `@CustomCodable`.
+@attached(accessor)
+public macro CustomKey(_ key: String) = #externalMacro(module: "MacroExamplesPlugin", type: "CustomKeyDummyMacro")
+
+public extension KeyedDecodingContainer {
+  func _decodeInferredType<Value: Decodable>(forKey key: KeyedDecodingContainer<K>.Key) throws -> Value {
+    try self.decode(Value.self, forKey: key)
+  }
+}

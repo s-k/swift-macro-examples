@@ -1,4 +1,5 @@
 
+import Foundation
 import MacroExamplesLib
 
 let x = 1
@@ -103,3 +104,39 @@ print("hostname: description=\(hostname) hashValue=\(hostname.hashValue)")
 
 let password = Password("squeamish ossifrage")
 print("password: description=\(password) hashValue=\(password.hashValue)")
+
+// MARK: CustomCodable
+
+@CustomCodable
+struct Party: Codable {
+  enum Theme: Codable {
+    case halloween
+    case birthday
+    case piratesAndMonstersAndUnicornsAndEverythingElse
+  }
+  
+  @CustomKey("host_name")
+  var hostName: String
+  var theme: Theme
+  var numberOfGuests: Int = 0 {
+    didSet {
+      print("Someone came! Or went, I don't know...")
+    }
+  }
+  
+  var description: String {
+    "\(hostName) has invited \(numberOfGuests) \(theme == .halloween ? "ghosts" : "guests")!"
+  }
+}
+
+let party = Party(
+  hostName: "Jim",
+  theme: .halloween,
+  numberOfGuests: 2
+)
+let encoder = JSONEncoder()
+let partyData = try encoder.encode(party)
+print(String(data: partyData, encoding: .utf8)!)
+let decoder = JSONDecoder()
+let partyCopy = try decoder.decode(Party.self, from: partyData)
+print(partyCopy.description)
